@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Torrent Cloud</title>
+  <style>
+    :root { --bg:#0f1115; --card:#181b22; --line:#262a33; --fg:#e7e9ee; --muted:#8b92a1; --accent:#4f8cff; --ok:#3ecf8e; --bad:#ff6b6b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:14px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+    main { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 20px; margin: 0 0 16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    input[type=text], input[type=password] { flex:1; min-width:200px; padding:8px 10px; border-radius:6px; border:1px solid var(--line); background:#0c0e12; color:var(--fg); }
+    button { padding:8px 14px; border-radius:6px; border:0; background:var(--accent); color:#fff; cursor:pointer; }
+    button.ghost { background:transparent; border:1px solid var(--line); color:var(--muted); }
+    .job { border-top:1px solid var(--line); padding:12px 0; }
+    .job:first-child { border-top:0; }
+    .name { font-weight:600; word-break:break-all; }
+    .meta { color:var(--muted); font-size:12px; }
+    .bar { height:6px; background:#0c0e12; border-radius:3px; overflow:hidden; margin:6px 0; }
+    .bar > div { height:100%; background:var(--accent); }
+    .status-done { color:var(--ok); } .status-failed { color:var(--bad); }
+    a { color:var(--accent); word-break:break-all; }
+    #msg { color:var(--bad); min-height:1.5em; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Torrent Cloud</h1>
+  <div class="card">
+    <div class="row">
+      <input id="token" type="password" placeholder="API token" autocomplete="off">
+      <button id="save" class="ghost">Use token</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="row">
+      <input id="magnet" type="text" placeholder="magnet:?xt=urn:btih:...">
+      <label class="meta"><input id="zip" type="checkbox"> zip</label>
+      <button id="add">Add</button>
+    </div>
+    <div id="msg"></div>
+  </div>
+  <div class="card" id="jobs"></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let token = sessionStorage.getItem('tc-token') || '';
+  $('token').value = token;
+
+  const fmt = (n) => { const u = ['B','KB','MB','GB','TB']; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return `${n.toFixed(i ? 1 : 0)} ${u[i]}`; };
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+
+  async function api(path, init = {}) {
+    const res = await fetch(path, { ...init, headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, ...(init.headers || {}) } });
+    if (res.status === 204) return null;
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    return body;
+  }
+
+  async function render() {
+    const box = $('jobs');
+    if (!token) { box.replaceChildren(el('div', 'meta', 'Enter the API token to see jobs.')); return; }
+    try {
+      const { jobs } = await api('/v1/jobs');
+      const items = await Promise.all(jobs.map((j) => j.status === 'done' ? api(`/v1/jobs/${j.id}`) : j));
+      box.replaceChildren(...(items.length ? items.map(renderJob) : [el('div', 'meta', 'No jobs yet.')]));
+    } catch (e) { box.replaceChildren(el('div', 'meta', e.message)); }
+  }
+
+  function renderJob(j) {
+    const row = el('div', 'job');
+    row.append(el('div', 'name', j.name || j.infoHash || j.id));
+    const p = j.progress;
+    row.append(el('div', `meta status-${j.status}`, `${j.status} · ${p.percent}% · ${fmt(p.completedBytes)} / ${fmt(p.totalBytes)} · ${fmt(p.downloadSpeed)}/s · peers ${p.connections}`));
+    const bar = el('div', 'bar'); const fill = el('div'); fill.style.width = `${j.status === 'done' ? 100 : p.percent}%`; bar.append(fill); row.append(bar);
+    if (j.error) row.append(el('div', 'meta status-failed', j.error));
+    for (const l of j.links || []) { const a = el('a', '', `${l.name} (${fmt(l.size)})`); a.href = l.url; row.append(el('div')).append(a); }
+    const del = el('button', 'ghost', 'Remove');
+    del.onclick = async () => { await api(`/v1/jobs/${j.id}`, { method: 'DELETE' }).catch((e) => ($('msg').textContent = e.message)); render(); };
+    row.append(del);
+    return row;
+  }
+
+  $('save').onclick = () => { token = $('token').value.trim(); sessionStorage.setItem('tc-token', token); render(); };
+  $('add').onclick = async () => {
+    $('msg').textContent = '';
+    try { await api('/v1/jobs', { method: 'POST', body: JSON.stringify({ magnet: $('magnet').value.trim(), zip: $('zip').checked }) }); $('magnet').value = ''; render(); }
+    catch (e) { $('msg').textContent = e.message; }
+  };
+  render();
+  setInterval(render, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "@torrent-cloud/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.900.0",
+    "@aws-sdk/lib-storage": "^3.900.0",
+    "@aws-sdk/s3-request-presigner": "^3.900.0",
+    "@fastify/static": "^8.2.0",
+    "archiver": "^7.0.1",
+    "fastify": "^5.6.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.3",
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

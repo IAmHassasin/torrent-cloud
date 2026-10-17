@@ -1,0 +1,29 @@
+{
+  "name": "torrent-cloud",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Download a torrent on a cloud worker and get a fast download link back.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "server",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "gen-env": "node scripts/gen-env.mjs",
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "demo": "node scripts/demo.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.71.2"
+  }
+}

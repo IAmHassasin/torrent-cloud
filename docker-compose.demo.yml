@@ -1,0 +1,10 @@
+# Offline demo seeder. Use together with the main file:
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+services:
+  seeder:
+    build: ./demo/seeder
+    environment:
+      DEMO_SIZE_MB: ${DEMO_SIZE_MB:-64}
+    networks: [engine]
+    volumes:
+      - ./demo/out:/seed/out
